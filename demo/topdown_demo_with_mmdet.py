@@ -257,7 +257,7 @@ def make_csv(pose_result, frame_idx, edaban, timestamp_millis) -> list:
     scores = np.asarray(pose_result.pred_instances['keypoint_scores'], dtype=np.float32)
     coords_scores: list = np.concatenate([coords, scores[..., np.newaxis]], axis=-1).reshape(-1).tolist()
     row_data = [f'{frame_idx:06}'] + [f'{edaban:02}'] + [timestamp_millis] + coords_scores
-    print(row_data)
+    # print(row_data)
     return row_data
 
 
@@ -408,8 +408,8 @@ def main():
         # inference
         pred_instances, pose_results = process_one_image(args, args.input, detector, pose_estimator, visualizer)
 
-        if args.save_predictions:
-            pred_instances_list = split_instances(pred_instances)
+        # if args.save_predictions:
+        #     pred_instances_list = split_instances(pred_instances)
 
         if output_file:
             img_vis = visualizer.get_image()
@@ -438,8 +438,8 @@ def main():
                     pred_instances_list.append(row_data)
                     edaban += 1
 
-                if args.save_predictions:
-                    pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
+                # if args.save_predictions:
+                #     pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
 
                 if output_file and args.save_images:
                     img_vis = visualizer.get_image()
