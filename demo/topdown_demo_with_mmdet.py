@@ -221,7 +221,7 @@ def main():
                 frame = hf['video'][index]
 
                 # inference
-                pred_instances = process_one_image(args, args.input, detector, pose_estimator, visualizer)
+                pred_instances = process_one_image(args, frame, detector, pose_estimator, visualizer)
 
                 if args.save_predictions:
                     pred_instances_list.append(dict(frame_id=index+1, instances=split_instances(pred_instances)))
