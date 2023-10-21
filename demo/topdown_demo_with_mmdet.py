@@ -410,7 +410,7 @@ def main():
 
                 # inference
                 pred_instances, pose_results = process_one_image(args, frame, detector, pose_estimator, visualizer)
-                print(pose_results[0].pred_instances)
+                print(pose_results[0].pred_instances._data_fields)
 
                 if args.save_predictions:
                     pred_instances_list.append(dict(frame_id=index+1, instances=split_instances(pred_instances)))
