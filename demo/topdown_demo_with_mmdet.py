@@ -341,6 +341,11 @@ def main():
         type=int,
         default=1,
         help='Link thickness for visualization')
+    parser.add_argument(
+        '--movie-fps',
+        type=int,
+        default=30,
+        help='Assumed frame rate for batch processing of still images')
     parser.add_argument('--show-interval', type=int, default=0, help='Sleep seconds per frame')
     parser.add_argument('--alpha', type=float, default=0.8, help='The transparency of bboxes')
     parser.add_argument('--draw-bbox', action='store_true', help='Draw bboxes of instances')
@@ -410,6 +415,8 @@ def main():
             mmcv.imwrite(mmcv.rgb2bgr(img_vis), output_file)
 
     elif input_type == 'h5':
+
+        fps = int(args.movie_fps)
 
         with h5py.File(args.input, 'r') as hf:
             for index in tqdm(range(len(hf['video'])), dynamic_ncols=True):
