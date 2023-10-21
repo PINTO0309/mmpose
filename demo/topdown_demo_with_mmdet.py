@@ -1,6 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import mimetypes
 import os
+import csv
 import time
 import h5py
 from argparse import ArgumentParser
@@ -251,6 +252,13 @@ def process_one_image(args,
     # if there is no instance detected, return None
     return data_samples.get('pred_instances', None), pose_results
 
+def make_csv(pose_result, frame_idx, edaban, timestamp_millis) -> list:
+    coords = np.asarray(pose_result.pred_instances['keypoints'], dtype=np.float32)
+    scores = np.asarray(pose_result.pred_instances['keypoint_scores'], dtype=np.float32)
+    coords_scores: list = np.concatenate([coords, scores[..., np.newaxis]], axis=-1).reshape(-1).tolist()
+    row_data = [f'{frame_idx:06}'] + [f'{edaban:02}'] + [timestamp_millis] + coords_scores
+    return row_data
+
 
 def main():
     """Visualize the demo images.
@@ -411,11 +419,19 @@ def main():
                 # inference
                 pred_instances, pose_results = process_one_image(args, frame, detector, pose_estimator, visualizer)
                 # print(pose_results[0].pred_instances._data_fields) # {'keypoint_scores', 'bboxes', 'keypoints', 'bbox_scores'}
-                print(np.asarray(pose_results[0].pred_instances['keypoints'], dtype=np.float32))
-                print(np.asarray(pose_results[0].pred_instances['keypoint_scores'], dtype=np.float32))
+                # print(np.asarray(pose_results[0].pred_instances['keypoints'], dtype=np.float32))
+                # print(np.asarray(pose_results[0].pred_instances['keypoint_scores'], dtype=np.float32))
+
+                frame_idx = index + 1
+                edaban = 1
+                timestamp_millis = ((frame_idx-1) * 1000) // fps
+                for pose_result in pose_results:
+                    row_data = make_csv(pose_result, frame_idx, edaban, timestamp_millis)
+                    pred_instances_list.append(row_data)
+                    edaban += 1
 
                 if args.save_predictions:
-                    pred_instances_list.append(dict(frame_id=index+1, instances=split_instances(pred_instances)))
+                    pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
 
                 if output_file and args.save_images:
                     img_vis = visualizer.get_image()
@@ -431,6 +447,7 @@ def main():
             cap = cv2.VideoCapture(0)
         else:
             cap = cv2.VideoCapture(args.input)
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
 
         video_writer = None
         frame_idx = 0
@@ -445,12 +462,19 @@ def main():
             # topdown pose estimation
             pred_instances, pose_results = process_one_image(args, frame, detector,  pose_estimator, visualizer, 0.001)
 
-            if args.save_predictions:
-                # save prediction results
-                pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
+            edaban = 1
+            timestamp_millis = ((frame_idx-1) * 1000) // fps
+            for pose_result in pose_results:
+                row_data = make_csv(pose_result, frame_idx, edaban, timestamp_millis)
+                pred_instances_list.append(row_data)
+                edaban += 1
+
+            # if args.save_predictions:
+            #     # save prediction results
+            #     pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
 
             # output videos
-            if output_file:
+            if output_file and args.save_images:
                 frame_vis = visualizer.get_image()
 
                 if video_writer is None:
@@ -466,10 +490,10 @@ def main():
                 video_writer.write(mmcv.rgb2bgr(frame_vis))
 
             # press ESC to exit
-            if cv2.waitKey(5) & 0xFF == 27:
+            if cv2.waitKey(1) & 0xFF == 27:
                 break
 
-            time.sleep(args.show_interval)
+            # time.sleep(args.show_interval)
 
         if video_writer:
             video_writer.release()
@@ -482,13 +506,18 @@ def main():
             f'file {os.path.basename(args.input)} has invalid format.')
 
     if args.save_predictions and len(pred_instances_list) > 0:
-        with open(args.pred_save_path, 'w') as f:
-            json.dump(
-                dict(
-                    meta_info=pose_estimator.dataset_meta,
-                    instance_info=pred_instances_list),
-                f,
-                indent='\t')
+        # with open(args.pred_save_path, 'w') as f:
+        #     json.dump(
+        #         dict(
+        #             meta_info=pose_estimator.dataset_meta,
+        #             instance_info=pred_instances_list),
+        #         f,
+        #         indent='\t')
+        basename_without_ext = os.path.splitext(os.path.basename(args.input))[0]
+        output_file = os.path.join(args.output_root, f'{basename_without_ext}.csv')
+        with open(output_file, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerows(pred_instances_list)
         print(f'predictions have been saved at {args.pred_save_path}')
 
 
