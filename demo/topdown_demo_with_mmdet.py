@@ -231,6 +231,7 @@ def main():
                     basename_without_ext = os.path.splitext(os.path.basename(args.input))[0]
                     ext = os.path.splitext(args.input)
                     output_file = os.path.join(args.output_root, f'{basename_without_ext}_{index:06}_{ext}')
+                    print(f'output_file: {output_file}')
                     mmcv.imwrite(mmcv.rgb2bgr(img_vis), output_file)
 
     elif input_type in ['webcam', 'video']:
