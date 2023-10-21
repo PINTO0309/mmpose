@@ -4,6 +4,7 @@ import os
 import time
 import h5py
 from argparse import ArgumentParser
+from tqdm import tqdm
 
 import cv2
 import json_tricks as json
@@ -96,6 +97,11 @@ def main():
         action='store_true',
         default=False,
         help='whether to save predicted results')
+    parser.add_argument(
+        '--save-images',
+        action='store_true',
+        default=False,
+        help='whether to save predicted images')
     parser.add_argument(
         '--device', default='cuda:0', help='Device used for inference')
     parser.add_argument(
@@ -198,6 +204,7 @@ def main():
             input_type = 'h5'
 
     print(f'##### input_type: {input_type}')
+    pred_instances_list = []
 
     if input_type == 'image':
 
@@ -213,10 +220,8 @@ def main():
 
     elif input_type == 'h5':
 
-        pred_instances_list = []
-
         with h5py.File(args.input, 'r') as hf:
-            for index in range(len(hf['video'])):
+            for index in tqdm(range(len(hf['video'])), dynamic_ncols=True):
                 # データセットから指定したインデックスのフレームを読み取る
                 frame = hf['video'][index]
 
@@ -226,7 +231,7 @@ def main():
                 if args.save_predictions:
                     pred_instances_list.append(dict(frame_id=index+1, instances=split_instances(pred_instances)))
 
-                if output_file:
+                if output_file and args.save_images:
                     img_vis = visualizer.get_image()
                     basename_without_ext = os.path.splitext(os.path.basename(args.input))[0]
                     # ext = os.path.splitext(args.input)[-1]
@@ -242,7 +247,6 @@ def main():
             cap = cv2.VideoCapture(args.input)
 
         video_writer = None
-        pred_instances_list = []
         frame_idx = 0
 
         while cap.isOpened():
@@ -291,7 +295,7 @@ def main():
         raise ValueError(
             f'file {os.path.basename(args.input)} has invalid format.')
 
-    if args.save_predictions:
+    if args.save_predictions and len(pred_instances_list) > 0:
         with open(args.pred_save_path, 'w') as f:
             json.dump(
                 dict(
