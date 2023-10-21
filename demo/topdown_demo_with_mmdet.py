@@ -2,6 +2,7 @@
 import mimetypes
 import os
 import time
+import h5py
 from argparse import ArgumentParser
 
 import cv2
@@ -35,10 +36,8 @@ def process_one_image(args,
     # predict bbox
     det_result = inference_detector(detector, img)
     pred_instance = det_result.pred_instances.cpu().numpy()
-    bboxes = np.concatenate(
-        (pred_instance.bboxes, pred_instance.scores[:, None]), axis=1)
-    bboxes = bboxes[np.logical_and(pred_instance.labels == args.det_cat_id,
-                                   pred_instance.scores > args.bbox_thr)]
+    bboxes = np.concatenate((pred_instance.bboxes, pred_instance.scores[:, None]), axis=1)
+    bboxes = bboxes[np.logical_and(pred_instance.labels == args.det_cat_id, pred_instance.scores > args.bbox_thr)]
     bboxes = bboxes[nms(bboxes, args.nms_thr), :4]
 
     # predict keypoints
@@ -145,12 +144,9 @@ def main():
         type=int,
         default=1,
         help='Link thickness for visualization')
-    parser.add_argument(
-        '--show-interval', type=int, default=0, help='Sleep seconds per frame')
-    parser.add_argument(
-        '--alpha', type=float, default=0.8, help='The transparency of bboxes')
-    parser.add_argument(
-        '--draw-bbox', action='store_true', help='Draw bboxes of instances')
+    parser.add_argument('--show-interval', type=int, default=0, help='Sleep seconds per frame')
+    parser.add_argument('--alpha', type=float, default=0.8, help='The transparency of bboxes')
+    parser.add_argument('--draw-bbox', action='store_true', help='Draw bboxes of instances')
 
     assert has_mmdet, 'Please install mmdet to run the demo.'
 
@@ -164,15 +160,13 @@ def main():
     output_file = None
     if args.output_root:
         mmengine.mkdir_or_exist(args.output_root)
-        output_file = os.path.join(args.output_root,
-                                   os.path.basename(args.input))
+        output_file = os.path.join(args.output_root, os.path.basename(args.input))
         if args.input == 'webcam':
             output_file += '.mp4'
 
     if args.save_predictions:
         assert args.output_root != ''
-        args.pred_save_path = f'{args.output_root}/results_' \
-            f'{os.path.splitext(os.path.basename(args.input))[0]}.json'
+        args.pred_save_path = f'{args.output_root}/results_{os.path.splitext(os.path.basename(args.input))[0]}.json'
 
     # build detector
     detector = init_detector(
@@ -194,19 +188,19 @@ def main():
     visualizer = VISUALIZERS.build(pose_estimator.cfg.visualizer)
     # the dataset_meta is loaded from the checkpoint and
     # then pass to the model in init_pose_estimator
-    visualizer.set_dataset_meta(
-        pose_estimator.dataset_meta, skeleton_style=args.skeleton_style)
+    visualizer.set_dataset_meta(pose_estimator.dataset_meta, skeleton_style=args.skeleton_style)
 
     if args.input == 'webcam':
         input_type = 'webcam'
     else:
         input_type = mimetypes.guess_type(args.input)[0].split('/')[0]
+        if input_type == 'application' and os.path.splitext(args.input) == '.h5':
+            input_type = 'h5'
 
     if input_type == 'image':
 
         # inference
-        pred_instances = process_one_image(args, args.input, detector,
-                                           pose_estimator, visualizer)
+        pred_instances = process_one_image(args, args.input, detector, pose_estimator, visualizer)
 
         if args.save_predictions:
             pred_instances_list = split_instances(pred_instances)
@@ -214,6 +208,28 @@ def main():
         if output_file:
             img_vis = visualizer.get_image()
             mmcv.imwrite(mmcv.rgb2bgr(img_vis), output_file)
+
+    elif input_type == 'h5':
+
+        pred_instances_list = []
+
+        with h5py.File(args.input, 'r') as hf:
+            for index in range(len(hf['video'])):
+                # データセットから指定したインデックスのフレームを読み取る
+                frame = hf['video'][index]
+
+                # inference
+                pred_instances = process_one_image(args, args.input, detector, pose_estimator, visualizer)
+
+                if args.save_predictions:
+                    pred_instances_list.append(dict(frame_id=index+1, instances=split_instances(pred_instances)))
+
+                if output_file:
+                    img_vis = visualizer.get_image()
+                    basename_without_ext = os.path.splitext(os.path.basename(args.input))[0]
+                    ext = os.path.splitext(args.input)
+                    output_file = os.path.join(args.output_root, f'{basename_without_ext}_{index:06}_{ext}')
+                    mmcv.imwrite(mmcv.rgb2bgr(img_vis), output_file)
 
     elif input_type in ['webcam', 'video']:
 
@@ -234,16 +250,11 @@ def main():
                 break
 
             # topdown pose estimation
-            pred_instances = process_one_image(args, frame, detector,
-                                               pose_estimator, visualizer,
-                                               0.001)
+            pred_instances = process_one_image(args, frame, detector,  pose_estimator, visualizer, 0.001)
 
             if args.save_predictions:
                 # save prediction results
-                pred_instances_list.append(
-                    dict(
-                        frame_id=frame_idx,
-                        instances=split_instances(pred_instances)))
+                pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
 
             # output videos
             if output_file:
