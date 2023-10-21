@@ -257,6 +257,7 @@ def make_csv(pose_result, frame_idx, edaban, timestamp_millis) -> list:
     scores = np.asarray(pose_result.pred_instances['keypoint_scores'], dtype=np.float32)
     coords_scores: list = np.concatenate([coords, scores[..., np.newaxis]], axis=-1).reshape(-1).tolist()
     row_data = [f'{frame_idx:06}'] + [f'{edaban:02}'] + [timestamp_millis] + coords_scores
+    print(row_data)
     return row_data
 
 
