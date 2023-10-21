@@ -229,8 +229,8 @@ def main():
                 if output_file:
                     img_vis = visualizer.get_image()
                     basename_without_ext = os.path.splitext(os.path.basename(args.input))[0]
-                    ext = os.path.splitext(args.input)
-                    output_file = os.path.join(args.output_root, f'{basename_without_ext}_{index:06}_{ext}')
+                    ext = os.path.splitext(args.input)[-1]
+                    output_file = os.path.join(args.output_root, f'{basename_without_ext}_{index:06}{ext}')
                     print(f'output_file: {output_file}')
                     mmcv.imwrite(mmcv.rgb2bgr(img_vis), output_file)
 
