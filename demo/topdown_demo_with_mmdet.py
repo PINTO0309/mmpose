@@ -194,7 +194,7 @@ def main():
         input_type = 'webcam'
     else:
         input_type = mimetypes.guess_type(args.input)[0].split('/')[0]
-        if os.path.splitext(args.input) == '.h5':
+        if os.path.splitext(args.input)[-1] == '.h5':
             input_type = 'h5'
 
     print(f'##### input_type: {input_type}')
