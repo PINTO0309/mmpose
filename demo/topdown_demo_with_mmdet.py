@@ -518,7 +518,7 @@ def main():
         with open(output_file, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerows(pred_instances_list)
-        print(f'predictions have been saved at {args.pred_save_path}')
+        print(f'predictions have been saved at {output_file}')
 
 
 if __name__ == '__main__':
