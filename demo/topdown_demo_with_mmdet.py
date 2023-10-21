@@ -43,6 +43,7 @@ def process_one_image(args,
 
     # predict keypoints
     pose_results = inference_topdown(pose_estimator, img, bboxes)
+    print(f'##### pose_results: {pose_results}')
     data_samples = merge_data_samples(pose_results)
 
     # show the results
