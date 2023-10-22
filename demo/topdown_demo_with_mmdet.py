@@ -252,9 +252,12 @@ def process_one_image(args,
     # if there is no instance detected, return None
     return data_samples.get('pred_instances', None), pose_results
 
-def make_csv(pose_result, frame_idx, edaban, timestamp_millis) -> list:
+def make_csv(pose_result, frame_idx, edaban, timestamp_millis, kpt_thr=0.30) -> list:
     coords = np.asarray(pose_result.pred_instances['keypoints'], dtype=np.float32)
     scores = np.asarray(pose_result.pred_instances['keypoint_scores'], dtype=np.float32)
+    has_value_above_0_4 = np.any(scores >= kpt_thr)
+    if not has_value_above_0_4:
+        return []
     coords_scores: list = np.concatenate([coords, scores[..., np.newaxis]], axis=-1).reshape(-1).tolist()
     row_data = [f'{frame_idx:06}'] + [f'{edaban:02}'] + [timestamp_millis] + coords_scores
     # print(row_data)
@@ -434,9 +437,10 @@ def main():
                 edaban = 1
                 timestamp_millis = ((frame_idx-1) * 1000) // fps
                 for pose_result in pose_results:
-                    row_data = make_csv(pose_result, frame_idx, edaban, timestamp_millis)
-                    pred_instances_list.append(row_data)
-                    edaban += 1
+                    row_data = make_csv(pose_result, frame_idx, edaban, timestamp_millis, args.kpt_thr)
+                    if row_data != []:
+                        pred_instances_list.append(row_data)
+                        edaban += 1
 
                 # if args.save_predictions:
                 #     pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
@@ -473,9 +477,10 @@ def main():
             edaban = 1
             timestamp_millis = ((frame_idx-1) * 1000) // fps
             for pose_result in pose_results:
-                row_data = make_csv(pose_result, frame_idx, edaban, timestamp_millis)
-                pred_instances_list.append(row_data)
-                edaban += 1
+                row_data = make_csv(pose_result, frame_idx, edaban, timestamp_millis, args.kpt_thr)
+                if row_data != []:
+                    pred_instances_list.append(row_data)
+                    edaban += 1
 
             # if args.save_predictions:
             #     # save prediction results
