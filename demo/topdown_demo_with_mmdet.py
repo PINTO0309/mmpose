@@ -255,12 +255,11 @@ def process_one_image(args,
 def make_csv(pose_result, frame_idx, edaban, timestamp_millis, kpt_thr=0.30) -> list:
     coords = np.asarray(pose_result.pred_instances['keypoints'], dtype=np.float32)
     scores = np.asarray(pose_result.pred_instances['keypoint_scores'], dtype=np.float32)
-    has_value_above_0_4 = np.any(scores >= kpt_thr)
-    if not has_value_above_0_4:
+    has_value_above_xxx = np.any(scores >= kpt_thr)
+    if not has_value_above_xxx:
         return []
     coords_scores: list = np.concatenate([coords, scores[..., np.newaxis]], axis=-1).reshape(-1).tolist()
     row_data = [f'{frame_idx:06}'] + [f'{edaban:02}'] + [timestamp_millis] + coords_scores
-    # print(row_data)
     return row_data
 
 
@@ -434,6 +433,7 @@ def main():
                 # print(np.asarray(pose_results[0].pred_instances['keypoint_scores'], dtype=np.float32))
 
                 frame_idx = index + 1
+                person_per_frame_count = 0
                 edaban = 1
                 timestamp_millis = ((frame_idx-1) * 1000) // fps
                 for pose_result in pose_results:
@@ -441,6 +441,13 @@ def main():
                     if row_data != []:
                         pred_instances_list.append(row_data)
                         edaban += 1
+                        person_per_frame_count += 1
+                if person_per_frame_count == 0:
+                    coords = np.full([133, 2], fill_value=-99999.0, dtype=np.float32)
+                    scores = np.full([133, 1], fill_value=-99999.0, dtype=np.float32)
+                    coords_scores: list = np.concatenate([coords, scores], axis=-1).reshape(-1).tolist()
+                    row_data = [f'{frame_idx:06}'] + [f'01'] + [timestamp_millis] + coords_scores
+                    pred_instances_list.append(row_data)
 
                 # if args.save_predictions:
                 #     pred_instances_list.append(dict(frame_id=frame_idx, instances=split_instances(pred_instances)))
@@ -473,7 +480,7 @@ def main():
 
             # topdown pose estimation
             pred_instances, pose_results = process_one_image(args, frame, detector,  pose_estimator, visualizer, 0.001)
-
+            person_per_frame_count = 0
             edaban = 1
             timestamp_millis = ((frame_idx-1) * 1000) // fps
             for pose_result in pose_results:
@@ -481,6 +488,13 @@ def main():
                 if row_data != []:
                     pred_instances_list.append(row_data)
                     edaban += 1
+                    person_per_frame_count += 1
+            if person_per_frame_count == 0:
+                coords = np.full([133, 2], fill_value=-99999.0, dtype=np.float32)
+                scores = np.full([133, 1], fill_value=-99999.0, dtype=np.float32)
+                coords_scores: list = np.concatenate([coords, scores], axis=-1).reshape(-1).tolist()
+                row_data = [f'{frame_idx:06}'] + [f'01'] + [timestamp_millis] + coords_scores
+                pred_instances_list.append(row_data)
 
             # if args.save_predictions:
             #     # save prediction results
